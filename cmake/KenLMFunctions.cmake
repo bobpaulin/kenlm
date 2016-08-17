@@ -1,5 +1,9 @@
 # Helper functions used across the CMake build system
 
+
+#message("Project binary dir:" ${PROJECT_BINARY_DIR})
+
+
 include(CMakeParseArguments)
 
 # Adds a bunch of executables to the build, each depending on the specified
@@ -15,7 +19,9 @@ function(AddExes)
     add_executable(${exe} ${exe}_main.cc ${AddExes_DEPENDS})
 
     # Link the executable against the supplied libraries
-    target_link_libraries(${exe} ${AddExes_LIBRARIES})
+    if(AddExes_LIBRARIES)
+      target_link_libraries(${exe} ${AddExes_LIBRARIES})
+    endif()
 
     # Group executables together
     set_target_properties(${exe} PROPERTIES FOLDER executables)
@@ -39,18 +45,25 @@ function(KenLMAddTest)
                  ${KenLMAddTest_TEST}.cc
                  ${KenLMAddTest_DEPENDS})
 
-  if (Boost_USE_STATIC_LIBS)
-    set(DYNLINK_FLAGS)
-  else()
-    set(DYNLINK_FLAGS COMPILE_FLAGS -DBOOST_TEST_DYN_LINK)
-  endif()
 
+
+
+if(USE_STATIC_BOOST)
   # Require the following compile flag
-  set_target_properties(${KenLMAddTest_TEST} PROPERTIES
-                        ${DYNLINK_FLAGS}
-                        RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/tests)
+  message("Info: Using static boost and therefore not adding the -DBOOST_TEST_DYN_LINK compile flag")
+else(USE_STATIC_BOOST)
+   # Require the following compile flag
+  set_target_properties(${KenLMAddTest_TEST} PROPERTIES COMPILE_FLAGS -DBOOST_TEST_DYN_LINK)
+endif(USE_STATIC_BOOST)
 
-  target_link_libraries(${KenLMAddTest_TEST} ${KenLMAddTest_LIBRARIES} ${TIMER_LINK})
+
+  # Require the following compile flag  
+ # set_target_properties(${KenLMAddTest_TEST} PROPERTIES COMPILE_FLAGS -DBOOST_TEST_DYN_LINK)
+
+
+  if(KenLMAddTest_LIBRARIES)
+    target_link_libraries(${KenLMAddTest_TEST} ${KenLMAddTest_LIBRARIES})
+  endif()
 
   set(test_params "")
   if(KenLMAddTest_TEST_ARGS)
@@ -76,10 +89,12 @@ function(AddTests)
   cmake_parse_arguments(AddTests "" "" "${multiValueArgs}" ${ARGN})
 
   # Iterate through the Boost tests list
-  foreach(test ${AddTests_TESTS})
+  foreach(test ${KENLM_BOOST_TESTS_LIST})
+
     KenLMAddTest(TEST ${test}
                  DEPENDS ${AddTests_DEPENDS}
                  LIBRARIES ${AddTests_LIBRARIES}
                  TEST_ARGS ${AddTests_TEST_ARGS})
   endforeach(test)
 endfunction()
+
